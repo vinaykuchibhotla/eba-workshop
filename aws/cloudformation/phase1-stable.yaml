@@ -408,7 +408,7 @@ Resources:
               {
                 "name": "orchardlite-prestage",
                 "version": "1.0.0",
-                "description": "OrchardLite CMS - Phase 1 Prestage Application",
+                "description": "OrchardLite CMS - Enterprise Application",
                 "main": "server.js",
                 "scripts": {
                   "start": "node server.js"
@@ -481,11 +481,11 @@ Resources:
                   if (rows[0].count === 0) {
                     console.log('Seeding initial data (100 records for migration demo)...');
                     
-                    // Base sample data
+                    // Base sample data with historic dates
                     const baseSampleData = [
-                      ['Welcome to OrchardLite CMS', 'Getting started with our enterprise CMS application', 'This is a sample blog post showcasing our enterprise content management system. The application is running on ECS Fargate with RDS MySQL.', 'BlogPost', 1, new Date(), 42],
-                      ['Infrastructure Deployment Complete', 'Cloud infrastructure successfully deployed', 'The infrastructure deployment includes ECS Fargate, RDS MySQL, and Application Load Balancer. Ready for modernization planning.', 'BlogPost', 1, new Date(), 28],
-                      ['Enterprise Content Management', 'Powerful CMS for modern applications', 'OrchardLite CMS provides enterprise-grade content management capabilities with scalable cloud architecture.', 'BlogPost', 1, new Date(), 15]
+                      ['Welcome to OrchardLite CMS', 'Getting started with our enterprise CMS application', 'This is a sample blog post showcasing our enterprise content management system. The application is running on ECS Fargate with RDS MySQL.', 'BlogPost', 1, new Date('2019-12-15'), 42],
+                      ['Infrastructure Deployment Complete', 'Cloud infrastructure successfully deployed', 'The infrastructure deployment includes ECS Fargate, RDS MySQL, and Application Load Balancer. Ready for modernization planning.', 'BlogPost', 1, new Date('2019-11-20'), 28],
+                      ['Enterprise Content Management', 'Powerful CMS for modern applications', 'OrchardLite CMS provides enterprise-grade content management capabilities with scalable cloud architecture.', 'BlogPost', 1, new Date('2019-10-10'), 15]
                     ];
                     
                     // Generate additional realistic content for migration demo
@@ -513,9 +513,13 @@ Resources:
                       const viewCount = Math.floor(Math.random() * 200) + 1;
                       const authorId = Math.floor(Math.random() * 3) + 1; // Authors 1-3
                       
-                      // Create date within last 6 months
-                      const publishDate = new Date();
-                      publishDate.setDate(publishDate.getDate() - Math.floor(Math.random() * 180));
+                      // Create historic date between 2017-2019
+                      const startYear = 2017;
+                      const endYear = 2019;
+                      const year = startYear + Math.floor(Math.random() * (endYear - startYear + 1));
+                      const month = Math.floor(Math.random() * 12);
+                      const day = Math.floor(Math.random() * 28) + 1;
+                      const publishDate = new Date(year, month, day);
                       
                       const title = `${topic} Guide ${i}`;
                       const summary = `Comprehensive guide covering ${topic.toLowerCase()} best practices and implementation strategies for enterprise applications.`;
@@ -722,10 +726,10 @@ Resources:
                               </div>
                               <div class="card-body">
                                 <ul class="list-unstyled">
-                                  <li><strong>Phase:</strong> 1 - Current State</li>
                                   <li><strong>Framework:</strong> <span class="text-danger">.NET Framework 4.8</span></li>
                                   <li><strong>Platform:</strong> ECS Fargate</li>
                                   <li><strong>Database:</strong> <span class="text-danger">RDS MySQL 8.0</span></li>
+                                  <li><strong>Deployment:</strong> CloudFormation</li>
                                   <li><strong>Deployment:</strong> CloudFormation</li>
                                   <li><strong>Records:</strong> ${totalRecords}</li>
                                 </ul>
