@@ -5,7 +5,7 @@
 
 set -e
 
-STACK_NAME="orchardlite-phase1"
+STACK_NAME="orchardlite-baseline"
 REGION="us-west-1"
 TEMPLATE_FILE="aws/cloudformation/phase1-stable.yaml"
 
@@ -21,7 +21,7 @@ print_success() { echo -e "${GREEN}[SUCCESS]${NC} $1"; }
 print_error() { echo -e "${RED}[ERROR]${NC} $1"; }
 
 echo ""
-print_status "🚀 OrchardLite CMS - Phase 1 Prestage (Simplified & Reliable)"
+print_status "🚀 OrchardLite CMS - Enterprise Baseline (Production Ready)"
 print_status "Stack: $STACK_NAME | Region: $REGION"
 echo ""
 
@@ -53,7 +53,7 @@ if [ $? -eq 0 ]; then
     
     echo ""
     print_success "🌐 Application URL: $APP_URL"
-    print_status "🎯 Phase 1 Prestage Setup Complete!"
+    print_status "🎯 Enterprise Baseline Deployment Complete!"
     echo ""
     print_status "✅ What's been deployed:"
     print_status "   • ECS Fargate with .NET Framework 4.8 application"

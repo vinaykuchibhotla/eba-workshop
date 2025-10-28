@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: "2010-09-09"
-Description: "OrchardLite CMS - Phase 1 Prestage: ECS + RDS MySQL (Simplified and Reliable)"
+Description: "OrchardLite CMS - Enterprise Baseline: ECS + RDS MySQL (Production Ready)"
 
 Parameters:
   DBUsername:
@@ -36,14 +36,14 @@ Resources:
       EnableDnsSupport: true
       Tags:
         - Key: Name
-          Value: OrchardLite-Prestage-VPC
+          Value: OrchardLite-Enterprise-VPC
 
   InternetGateway:
     Type: AWS::EC2::InternetGateway
     Properties:
       Tags:
         - Key: Name
-          Value: OrchardLite-Prestage-IGW
+          Value: OrchardLite-Enterprise-IGW
 
   AttachGateway:
     Type: AWS::EC2::VPCGatewayAttachment
@@ -61,7 +61,7 @@ Resources:
       MapPublicIpOnLaunch: true
       Tags:
         - Key: Name
-          Value: OrchardLite-Prestage-Public-1
+          Value: OrchardLite-Enterprise-Public-1
 
   PublicSubnet2:
     Type: AWS::EC2::Subnet
@@ -72,7 +72,7 @@ Resources:
       MapPublicIpOnLaunch: true
       Tags:
         - Key: Name
-          Value: OrchardLite-Prestage-Public-2
+          Value: OrchardLite-Enterprise-Public-2
 
   # Private Subnets
   PrivateSubnet1:
@@ -83,7 +83,7 @@ Resources:
       AvailabilityZone: !Select [0, !GetAZs ""]
       Tags:
         - Key: Name
-          Value: OrchardLite-Prestage-Private-1
+          Value: OrchardLite-Enterprise-Private-1
 
   PrivateSubnet2:
     Type: AWS::EC2::Subnet
@@ -93,7 +93,7 @@ Resources:
       AvailabilityZone: !Select [1, !GetAZs ""]
       Tags:
         - Key: Name
-          Value: OrchardLite-Prestage-Private-2
+          Value: OrchardLite-Enterprise-Private-2
 
   # Database Subnets
   DatabaseSubnet1:
@@ -104,7 +104,7 @@ Resources:
       AvailabilityZone: !Select [0, !GetAZs ""]
       Tags:
         - Key: Name
-          Value: OrchardLite-Prestage-Database-1
+          Value: OrchardLite-Enterprise-Database-1
 
   DatabaseSubnet2:
     Type: AWS::EC2::Subnet
@@ -114,7 +114,7 @@ Resources:
       AvailabilityZone: !Select [1, !GetAZs ""]
       Tags:
         - Key: Name
-          Value: OrchardLite-Prestage-Database-2
+          Value: OrchardLite-Enterprise-Database-2
 
   # NAT Gateway
   NATGatewayEIP:
@@ -136,7 +136,7 @@ Resources:
       VpcId: !Ref VPC
       Tags:
         - Key: Name
-          Value: OrchardLite-Prestage-Public-RT
+          Value: OrchardLite-Enterprise-Public-RT
 
   PublicRoute:
     Type: AWS::EC2::Route
@@ -152,7 +152,7 @@ Resources:
       VpcId: !Ref VPC
       Tags:
         - Key: Name
-          Value: OrchardLite-Prestage-Private-RT
+          Value: OrchardLite-Enterprise-Private-RT
 
   PrivateRoute:
     Type: AWS::EC2::Route
@@ -200,7 +200,7 @@ Resources:
           Description: HTTP access
       Tags:
         - Key: Name
-          Value: OrchardLite-Prestage-ALB-SG
+          Value: OrchardLite-Enterprise-ALB-SG
 
   ECSSecurityGroup:
     Type: AWS::EC2::SecurityGroup
@@ -220,7 +220,7 @@ Resources:
           Description: HTTP access from public subnet 2
       Tags:
         - Key: Name
-          Value: OrchardLite-Prestage-ECS-SG
+          Value: OrchardLite-Enterprise-ECS-SG
 
   DatabaseSecurityGroup:
     Type: AWS::EC2::SecurityGroup
@@ -235,7 +235,7 @@ Resources:
           Description: MySQL access from VPC
       Tags:
         - Key: Name
-          Value: OrchardLite-Prestage-Database-SG
+          Value: OrchardLite-Enterprise-Database-SG
 
   # Database Subnet Group
   DatabaseSubnetGroup:
@@ -247,14 +247,14 @@ Resources:
         - !Ref DatabaseSubnet2
       Tags:
         - Key: Name
-          Value: OrchardLite-Prestage-SubnetGroup
+          Value: OrchardLite-Enterprise-SubnetGroup
 
   # RDS MySQL Database
   RDSDatabase:
     Type: AWS::RDS::DBInstance
     DeletionPolicy: Delete
     Properties:
-      DBInstanceIdentifier: orchardlite-mysql-prestage
+      DBInstanceIdentifier: orchardlite-mysql-enterprise
       DBInstanceClass: db.t3.micro
       Engine: mysql
       EngineVersion: "8.0.39"
@@ -272,7 +272,7 @@ Resources:
       DeletionProtection: false
       Tags:
         - Key: Name
-          Value: OrchardLite-MySQL-Prestage
+          Value: OrchardLite-MySQL-Enterprise
 
   # IAM Roles
   ECSTaskExecutionRole:
@@ -303,7 +303,7 @@ Resources:
   ApplicationLoadBalancer:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
     Properties:
-      Name: OrchardLite-Prestage-ALB
+      Name: OrchardLite-Enterprise-ALB
       Scheme: internet-facing
       Type: application
       SecurityGroups:
@@ -313,12 +313,12 @@ Resources:
         - !Ref PublicSubnet2
       Tags:
         - Key: Name
-          Value: OrchardLite-Prestage-ALB
+          Value: OrchardLite-Enterprise-ALB
 
   ALBTargetGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Properties:
-      Name: OrchardLite-Prestage-TG
+      Name: OrchardLite-Enterprise-TG
       Port: 8080
       Protocol: HTTP
       VpcId: !Ref VPC
@@ -344,7 +344,7 @@ Resources:
   ECSCluster:
     Type: AWS::ECS::Cluster
     Properties:
-      ClusterName: OrchardLite-Prestage-Cluster
+      ClusterName: OrchardLite-Enterprise-Cluster
       CapacityProviders:
         - FARGATE
       DefaultCapacityProviderStrategy:
@@ -479,7 +479,8 @@ Resources:
                   // Check if we have data
                   const [rows] = await dbConnection.execute('SELECT COUNT(*) as count FROM ContentItems');
                   if (rows[0].count === 0) {
-                    console.log('Seeding initial data (100 records for migration demo)...');
+                    const totalRecords = 100;
+                    console.log(`Seeding initial data (${totalRecords} records for migration demo)...`);
                     
                     // Base sample data with historic dates
                     const baseSampleData = [
@@ -827,7 +828,7 @@ Resources:
 
 Outputs:
   ApplicationURL:
-    Description: URL of the OrchardLite CMS Prestage Application
+    Description: URL of the OrchardLite CMS Enterprise Application
     Value: !Sub "http://${ApplicationLoadBalancer.DNSName}"
 
   LoadBalancerDNS:
@@ -844,4 +845,4 @@ Outputs:
 
   WorkshopPhase:
     Description: Current workshop phase
-    Value: "Phase 1 - Prestage Setup (.NET Framework 4.8 + RDS MySQL)"
+    Value: "Phase 1 - Enterprise Setup (.NET Framework 4.8 + RDS MySQL)"
