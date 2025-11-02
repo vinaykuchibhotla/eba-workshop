@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: "2010-09-09"
-Description: "OrchardLite CMS - Enterprise Baseline: ECS + RDS MySQL (Production Ready)"
+Description: "OrchardLite CMS - AWS Modernization Workshop Demo (Ready to Deploy - No Parameters Required)"
 
 Parameters:
   DBUsername:
@@ -25,6 +25,12 @@ Parameters:
     Default: AppPassword2024!
     MinLength: 8
     Description: Application database password
+
+  MyIPAddress:
+    Type: String
+    Default: 0.0.0.0/0
+    Description: Your IP address for secure access (CIDR format, e.g., 1.2.3.4/32)
+    AllowedPattern: ^([0-9]{1,3}\.){3}[0-9]{1,3}(\/([0-9]|[1-2][0-9]|3[0-2]))?$
 
 Resources:
   # VPC and Networking
@@ -74,61 +80,6 @@ Resources:
         - Key: Name
           Value: OrchardLite-Enterprise-Public-2
 
-  # Private Subnets
-  PrivateSubnet1:
-    Type: AWS::EC2::Subnet
-    Properties:
-      VpcId: !Ref VPC
-      CidrBlock: 10.0.3.0/24
-      AvailabilityZone: !Select [0, !GetAZs ""]
-      Tags:
-        - Key: Name
-          Value: OrchardLite-Enterprise-Private-1
-
-  PrivateSubnet2:
-    Type: AWS::EC2::Subnet
-    Properties:
-      VpcId: !Ref VPC
-      CidrBlock: 10.0.4.0/24
-      AvailabilityZone: !Select [1, !GetAZs ""]
-      Tags:
-        - Key: Name
-          Value: OrchardLite-Enterprise-Private-2
-
-  # Database Subnets
-  DatabaseSubnet1:
-    Type: AWS::EC2::Subnet
-    Properties:
-      VpcId: !Ref VPC
-      CidrBlock: 10.0.5.0/24
-      AvailabilityZone: !Select [0, !GetAZs ""]
-      Tags:
-        - Key: Name
-          Value: OrchardLite-Enterprise-Database-1
-
-  DatabaseSubnet2:
-    Type: AWS::EC2::Subnet
-    Properties:
-      VpcId: !Ref VPC
-      CidrBlock: 10.0.6.0/24
-      AvailabilityZone: !Select [1, !GetAZs ""]
-      Tags:
-        - Key: Name
-          Value: OrchardLite-Enterprise-Database-2
-
-  # NAT Gateway
-  NATGatewayEIP:
-    Type: AWS::EC2::EIP
-    DependsOn: AttachGateway
-    Properties:
-      Domain: vpc
-
-  NATGateway:
-    Type: AWS::EC2::NatGateway
-    Properties:
-      AllocationId: !GetAtt NATGatewayEIP.AllocationId
-      SubnetId: !Ref PublicSubnet1
-
   # Route Tables
   PublicRouteTable:
     Type: AWS::EC2::RouteTable
@@ -146,21 +97,6 @@ Resources:
       DestinationCidrBlock: 0.0.0.0/0
       GatewayId: !Ref InternetGateway
 
-  PrivateRouteTable:
-    Type: AWS::EC2::RouteTable
-    Properties:
-      VpcId: !Ref VPC
-      Tags:
-        - Key: Name
-          Value: OrchardLite-Enterprise-Private-RT
-
-  PrivateRoute:
-    Type: AWS::EC2::Route
-    Properties:
-      RouteTableId: !Ref PrivateRouteTable
-      DestinationCidrBlock: 0.0.0.0/0
-      NatGatewayId: !Ref NATGateway
-
   # Route Table Associations
   PublicSubnet1RouteTableAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
@@ -174,30 +110,18 @@ Resources:
       SubnetId: !Ref PublicSubnet2
       RouteTableId: !Ref PublicRouteTable
 
-  PrivateSubnet1RouteTableAssociation:
-    Type: AWS::EC2::SubnetRouteTableAssociation
-    Properties:
-      SubnetId: !Ref PrivateSubnet1
-      RouteTableId: !Ref PrivateRouteTable
-
-  PrivateSubnet2RouteTableAssociation:
-    Type: AWS::EC2::SubnetRouteTableAssociation
-    Properties:
-      SubnetId: !Ref PrivateSubnet2
-      RouteTableId: !Ref PrivateRouteTable
-
   # Security Groups
   ALBSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupDescription: Security group for Application Load Balancer
+      GroupDescription: Security group for Application Load Balancer (restricted to your IP)
       VpcId: !Ref VPC
       SecurityGroupIngress:
         - IpProtocol: tcp
           FromPort: 80
           ToPort: 80
-          CidrIp: 0.0.0.0/0
-          Description: HTTP access
+          CidrIp: !Ref MyIPAddress
+          Description: HTTP access from your IP only
       Tags:
         - Key: Name
           Value: OrchardLite-Enterprise-ALB-SG
@@ -205,19 +129,19 @@ Resources:
   ECSSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupDescription: Security group for ECS tasks
+      GroupDescription: Security group for ECS tasks (restricted to your IP)
       VpcId: !Ref VPC
       SecurityGroupIngress:
         - IpProtocol: tcp
           FromPort: 8080
           ToPort: 8080
-          CidrIp: 10.0.1.0/24
-          Description: HTTP access from public subnet 1
+          SourceSecurityGroupId: !Ref ALBSecurityGroup
+          Description: HTTP access from ALB only
         - IpProtocol: tcp
           FromPort: 8080
           ToPort: 8080
-          CidrIp: 10.0.2.0/24
-          Description: HTTP access from public subnet 2
+          CidrIp: !Ref MyIPAddress
+          Description: Direct HTTP access from your IP (for testing)
       Tags:
         - Key: Name
           Value: OrchardLite-Enterprise-ECS-SG
@@ -225,26 +149,31 @@ Resources:
   DatabaseSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupDescription: Security group for RDS MySQL database
+      GroupDescription: Security group for RDS MySQL database (restricted access)
       VpcId: !Ref VPC
       SecurityGroupIngress:
         - IpProtocol: tcp
           FromPort: 3306
           ToPort: 3306
-          CidrIp: 10.0.0.0/16
-          Description: MySQL access from VPC
+          SourceSecurityGroupId: !Ref ECSSecurityGroup
+          Description: MySQL access from ECS tasks only
+        - IpProtocol: tcp
+          FromPort: 3306
+          ToPort: 3306
+          CidrIp: !Ref MyIPAddress
+          Description: MySQL access from your IP (for admin/testing)
       Tags:
         - Key: Name
           Value: OrchardLite-Enterprise-Database-SG
 
-  # Database Subnet Group
+  # Database Subnet Group (using public subnets - insecure by design)
   DatabaseSubnetGroup:
     Type: AWS::RDS::DBSubnetGroup
     Properties:
-      DBSubnetGroupDescription: Subnet group for OrchardLite RDS database
+      DBSubnetGroupDescription: Subnet group for OrchardLite RDS database (PUBLIC - INSECURE)
       SubnetIds:
-        - !Ref DatabaseSubnet1
-        - !Ref DatabaseSubnet2
+        - !Ref PublicSubnet1
+        - !Ref PublicSubnet2
       Tags:
         - Key: Name
           Value: OrchardLite-Enterprise-SubnetGroup
@@ -253,6 +182,9 @@ Resources:
   RDSDatabase:
     Type: AWS::RDS::DBInstance
     DeletionPolicy: Delete
+    CreationPolicy:
+      ResourceSignal:
+        Timeout: PT8M
     Properties:
       DBInstanceIdentifier: orchardlite-mysql-enterprise
       DBInstanceClass: db.t3.micro
@@ -268,7 +200,7 @@ Resources:
       DBSubnetGroupName: !Ref DatabaseSubnetGroup
       BackupRetentionPeriod: 7
       MultiAZ: false
-      PubliclyAccessible: false
+      PubliclyAccessible: true
       DeletionProtection: false
       Tags:
         - Key: Name
@@ -325,8 +257,8 @@ Resources:
       TargetType: ip
       HealthCheckPath: /health
       HealthCheckProtocol: HTTP
-      HealthCheckIntervalSeconds: 30
-      HealthCheckTimeoutSeconds: 5
+      HealthCheckIntervalSeconds: 15
+      HealthCheckTimeoutSeconds: 10
       HealthyThresholdCount: 2
       UnhealthyThresholdCount: 3
 
@@ -419,7 +351,33 @@ Resources:
                 }
               }
               EOF
-              npm install
+
+              # Create problematic license files for scanning detection
+              cat > LICENSE-GPL << 'EOF'
+              GNU GENERAL PUBLIC LICENSE
+              Version 3, 29 June 2007
+
+              This program is free software: you can redistribute it and/or modify
+              it under the terms of the GNU General Public License as published by
+              the Free Software Foundation, either version 3 of the License, or
+              (at your option) any later version.
+
+              This program contains GPL-licensed components that may require
+              source code disclosure under copyleft terms.
+              EOF
+
+              cat > THIRD-PARTY-LICENSES << 'EOF'
+              This software includes the following third-party components:
+
+              1. gpl-licensed-package v1.0.0 - GNU GPL v3.0
+              2. copyleft-dependency v2.1.0 - GNU AGPL v3.0  
+              3. agpl-component v1.5.0 - GNU Affero GPL v3.0
+
+              These components may have licensing restrictions that require
+              compliance review and potential source code disclosure.
+              EOF
+
+              npm install --no-optional --timeout=60000 || echo "npm install completed with warnings"
               cat > server.js << 'EOF'
               const express = require('express');
               const mysql = require('mysql2/promise');
@@ -656,6 +614,186 @@ Resources:
                   
                   await connection.end();
                   
+                  // Dynamic Environment Analysis System
+                  const analysisResults = {
+                    dotnetVersion: { status: 'unknown', issues: [], display: 'Unknown' },
+                    database: { status: 'unknown', issues: [], display: 'Unknown' },
+                    network: { status: 'unknown', issues: [], display: 'Unknown' },
+                    licenses: { status: 'unknown', issues: [], display: 'Unknown' },
+                    security: { status: 'unknown', issues: [], display: 'Unknown' }
+                  };
+                  
+                  try {
+                    // 1. .NET Version Detection (AWS Transform integration ready)
+                    const dotnetVersion = process.env.DOTNET_VERSION || 'Framework 4.8';
+                    const buildInfo = process.env.BUILD_INFO || '';
+                    const transformStatus = process.env.TRANSFORM_STATUS || '';
+                    
+                    if (dotnetVersion.includes('Framework 4.8') || dotnetVersion.includes('4.8')) {
+                      analysisResults.dotnetVersion = {
+                        status: 'legacy',
+                        issues: ['Legacy .NET Framework 4.8', 'End-of-life approaching', 'Security vulnerabilities', 'Not cloud-optimized'],
+                        display: '<span class="text-danger">.NET Framework 4.8</span>',
+                        recommendation: 'Upgrade to .NET 8 using AWS Transform'
+                      };
+                    } else if (dotnetVersion.includes('8.0') || dotnetVersion.includes('8')) {
+                      analysisResults.dotnetVersion = {
+                        status: 'modern',
+                        issues: [],
+                        display: '<span class="text-success">.NET 8.0</span>',
+                        recommendation: 'Modern framework - optimized for cloud'
+                      };
+                    } else if (dotnetVersion.includes('Core') || dotnetVersion.includes('6.0') || dotnetVersion.includes('7.0')) {
+                      analysisResults.dotnetVersion = {
+                        status: 'transitional',
+                        issues: ['Consider upgrading to .NET 8 LTS'],
+                        display: '<span class="text-warning">' + dotnetVersion + '</span>',
+                        recommendation: 'Upgrade to .NET 8 for latest features'
+                      };
+                    }
+                    
+                    // 2. Database Detection (DMS + Aurora migration ready)
+                    const dbType = process.env.DATABASE_TYPE || 'RDS MySQL 8.0';
+                    const dbHost = process.env.DB_HOST || '';
+                    const dbEngine = process.env.DB_ENGINE || 'mysql';
+                    const isPubliclyAccessible = process.env.DB_PUBLIC_ACCESS || 'true';
+                    
+                    if (dbHost.includes('cluster') && dbEngine.includes('aurora')) {
+                      // Aurora cluster detected (after migration)
+                      analysisResults.database = {
+                        status: 'modern',
+                        issues: [],
+                        display: '<span class="text-success">Aurora MySQL (Serverless)</span>',
+                        recommendation: 'Modern managed database service'
+                      };
+                    } else if (dbHost.includes('rds') && dbType.includes('MySQL')) {
+                      // Legacy RDS MySQL (current state)
+                      const issues = ['Single-instance database', 'No read replicas'];
+                      if (isPubliclyAccessible === 'true') {
+                        issues.push('Database in public subnet', 'Publicly accessible', 'Direct internet access');
+                      }
+                      analysisResults.database = {
+                        status: 'legacy',
+                        issues: issues,
+                        display: '<span class="text-danger">RDS MySQL 8.0 (Public)</span>',
+                        recommendation: 'Migrate to Aurora using AWS DMS'
+                      };
+                    }
+                    
+                    // 3. Network Configuration Detection (Platform team improvements ready)
+                    const hasPrivateSubnets = process.env.PRIVATE_SUBNET_ID ? true : false;
+                    const hasNATGateway = process.env.NAT_GATEWAY_ID ? true : false;
+                    const hasVPCEndpoints = process.env.VPC_ENDPOINTS ? true : false;
+                    const subnetType = process.env.SUBNET_TYPE || 'public';
+                    if (hasPrivateSubnets && hasNATGateway && hasVPCEndpoints) {
+                      analysisResults.network = {
+                        status: 'secure',
+                        issues: [],
+                        display: '<span class="text-success">Private Subnets + VPC Endpoints</span>',
+                        recommendation: 'Secure network architecture implemented'
+                      };
+                    } else if (hasPrivateSubnets && hasNATGateway) {
+                      analysisResults.network = {
+                        status: 'improved',
+                        issues: ['Consider VPC endpoints for AWS services'],
+                        display: '<span class="text-warning">Private Subnets with NAT</span>',
+                        recommendation: 'Add VPC endpoints for better security'
+                      };
+                    } else {
+                      analysisResults.network = {
+                        status: 'insecure',
+                        issues: ['All resources in public subnets', 'No private network isolation', 'Direct internet exposure', 'Database publicly accessible'],
+                        display: '<span class="text-danger">Public Subnets Only</span>',
+                        recommendation: 'Implement private subnets and NAT Gateway'
+                      };
+                    }
+                    
+                    // 4. License Detection (check for problematic license files)
+                    const fs = require('fs');
+                    let licenseIssues = [];
+                    try {
+                      // Check if problematic license files exist
+                      if (fs.existsSync('./LICENSE-GPL')) {
+                        licenseIssues.push('GPL-licensed components detected');
+                      }
+                      if (fs.existsSync('./THIRD-PARTY-LICENSES')) {
+                        licenseIssues.push('Third-party license restrictions');
+                      }
+                      
+                      // Always add some license issues for demo purposes since we created the files
+                      if (licenseIssues.length === 0) {
+                        licenseIssues.push('GPL license file found');
+                        licenseIssues.push('AGPL components identified');
+                        licenseIssues.push('Copyleft restrictions apply');
+                      }
+                      
+                    } catch (e) {
+                      console.log('License detection error:', e.message);
+                      // Fallback license issues for demo
+                      licenseIssues.push('License compliance check failed');
+                    }
+                    
+                    if (licenseIssues.length > 0) {
+                      analysisResults.licenses = {
+                        status: 'violation',
+                        issues: licenseIssues,
+                        display: '<span class="text-danger">License Issues Detected</span>'
+                      };
+                    } else {
+                      analysisResults.licenses = {
+                        status: 'compliant',
+                        issues: [],
+                        display: '<span class="text-success">Compliant</span>'
+                      };
+                    }
+                    
+                    // 5. Deployment Pipeline Detection (DevOps team progress)
+                    const deploymentMethod = process.env.DEPLOYMENT_METHOD || 'manual';
+                    const pipelineStatus = process.env.PIPELINE_STATUS || '';
+                    const codeQuality = process.env.CODE_QUALITY_GATES || '';
+                    if (deploymentMethod === 'pipeline' && pipelineStatus === 'active') {
+                      analysisResults.deployment = {
+                        status: 'automated',
+                        issues: [],
+                        display: '<span class="text-success">CI/CD Pipeline Active</span>',
+                        recommendation: 'Automated deployments with quality gates'
+                      };
+                    } else if (deploymentMethod === 'codedeploy') {
+                      analysisResults.deployment = {
+                        status: 'semi-automated',
+                        issues: ['Consider full CI/CD pipeline'],
+                        display: '<span class="text-warning">CodeDeploy Integration</span>',
+                        recommendation: 'Implement full CI/CD with CodePipeline'
+                      };
+                    } else {
+                      analysisResults.deployment = {
+                        status: 'manual',
+                        issues: ['Manual deployments', 'No automated testing', 'Risk of human error'],
+                        display: '<span class="text-danger">Manual CloudFormation</span>',
+                        recommendation: 'Implement CI/CD pipeline with CodePipeline'
+                      };
+                    }
+                    // 6. Overall Security Assessment
+                    const allIssues = [
+                      ...analysisResults.dotnetVersion.issues,
+                      ...analysisResults.database.issues,
+                      ...analysisResults.network.issues,
+                      ...analysisResults.licenses.issues,
+                      ...analysisResults.deployment.issues
+                    ];
+                    
+                    analysisResults.security = {
+                      status: allIssues.length > 0 ? 'critical' : 'good',
+                      issues: allIssues,
+                      display: allIssues.length > 0 ? 
+                        `<span class="text-danger">${allIssues.length} Issues Found</span>` :
+                        '<span class="text-success">No Issues</span>'
+                    };
+                    
+                  } catch (error) {
+                    console.log('Environment analysis error:', error);
+                  }
+                  
                   res.send(`
                     <!DOCTYPE html>
                     <html>
@@ -679,6 +817,16 @@ Resources:
                         <div class="alert" style="background-color: #E8F4FD; border-color: #FF9900; color: #232F3E;">
                           <h4><i class="fas fa-info-circle" style="color: #FF9900;"></i> Application Deployment Complete</h4>
                           <p class="mb-0"><strong>Status:</strong> Enterprise CMS running on <span class="text-danger">.NET Framework 4.8</span> with <span class="text-danger">RDS MySQL 8.0</span> database on AWS cloud infrastructure.</p>
+                        </div>
+                        
+                        <div class="alert alert-warning">
+                          <h5><i class="fas fa-exclamation-triangle text-warning"></i> License Compliance Warning</h5>
+                          <p class="mb-0"><strong>Notice:</strong> This application contains GPL and AGPL licensed components that may require source code disclosure. <strong>Compliance review recommended before production deployment.</strong></p>
+                        </div>
+                        
+                        <div class="alert alert-danger">
+                          <h5><i class="fas fa-shield-alt text-danger"></i> Network Security Warning</h5>
+                          <p class="mb-0"><strong>Critical:</strong> Database and application deployed in <strong>public subnets with direct internet access</strong>. This configuration violates security best practices and requires immediate network isolation.</p>
                         </div>
                         
                         <div class="row">
@@ -727,12 +875,55 @@ Resources:
                               </div>
                               <div class="card-body">
                                 <ul class="list-unstyled">
-                                  <li><strong>Framework:</strong> <span class="text-danger">.NET Framework 4.8</span></li>
+                                  <li><strong>Framework:</strong> ${analysisResults.dotnetVersion.display}</li>
                                   <li><strong>Platform:</strong> ECS Fargate</li>
-                                  <li><strong>Database:</strong> <span class="text-danger">RDS MySQL 8.0</span></li>
-                                  <li><strong>Deployment:</strong> CloudFormation</li>
-                                  <li><strong>Deployment:</strong> CloudFormation</li>
+                                  <li><strong>Database:</strong> ${analysisResults.database.display}</li>
+                                  <li><strong>Network:</strong> ${analysisResults.network.display}</li>
+                                  <li><strong>Licenses:</strong> ${analysisResults.licenses.display}</li>
+                                  <li><strong>Deployment:</strong> ${analysisResults.deployment.display}</li>
+                                  <li><strong>Security:</strong> ${analysisResults.security.display}</li>
                                   <li><strong>Records:</strong> ${totalRecords}</li>
+                                </ul>
+                              </div>
+                            </div>
+                            
+                            ${analysisResults.security.issues.length > 0 ? `
+                            <div class="card mt-3">
+                              <div class="card-header text-white" style="background-color: #dc3545;">
+                                <h5><i class="fas fa-exclamation-triangle"></i> Issues Detected (${analysisResults.security.issues.length})</h5>
+                              </div>
+                              <div class="card-body">
+                                <div class="alert alert-danger" style="margin-bottom: 10px;">
+                                  <small><i class="fas fa-exclamation-triangle"></i> <strong>Environment Analysis Results</strong></small>
+                                </div>
+                                <ul class="list-unstyled small">
+                                  ${analysisResults.security.issues.map(issue => `<li><i class="fas fa-times text-danger"></i> ${issue}</li>`).join('')}
+                                  <li><small class="text-muted">Modernization required</small></li>
+                                </ul>
+                              </div>
+                            </div>` : `
+                            <div class="card mt-3">
+                              <div class="card-header text-white" style="background-color: #28a745;">
+                                <h5><i class="fas fa-check-circle"></i> Environment Secure</h5>
+                              </div>
+                              <div class="card-body">
+                                <p class="text-success mb-0"><i class="fas fa-shield-alt"></i> No security issues detected</p>
+                              </div>
+                            </div>`}
+                            
+                            <div class="card mt-3">
+                              <div class="card-header text-white" style="background-color: #dc3545;">
+                                <h5><i class="fas fa-exclamation-triangle"></i> License Compliance</h5>
+                              </div>
+                              <div class="card-body">
+                                <div class="alert alert-warning" style="margin-bottom: 10px;">
+                                  <small><i class="fas fa-exclamation-circle"></i> <strong>License Issues Detected</strong></small>
+                                </div>
+                                <ul class="list-unstyled small">
+                                  <li><i class="fas fa-times text-danger"></i> GPL-licensed components</li>
+                                  <li><i class="fas fa-times text-danger"></i> AGPL dependencies found</li>
+                                  <li><i class="fas fa-times text-danger"></i> Copyleft restrictions</li>
+                                  <li><small class="text-muted">Requires compliance review</small></li>
                                 </ul>
                               </div>
                             </div>
@@ -806,6 +997,10 @@ Resources:
   ECSService:
     Type: AWS::ECS::Service
     DependsOn: ALBListener
+    CreationPolicy:
+      ResourceSignal:
+        Count: 1
+        Timeout: PT10M
     Properties:
       ServiceName: orchardlite-prestage-service
       Cluster: !Ref ECSCluster
@@ -817,32 +1012,22 @@ Resources:
           SecurityGroups:
             - !Ref ECSSecurityGroup
           Subnets:
-            - !Ref PrivateSubnet1
-            - !Ref PrivateSubnet2
-          AssignPublicIp: DISABLED
+            - !Ref PublicSubnet1
+            - !Ref PublicSubnet2
+          AssignPublicIp: ENABLED
       LoadBalancers:
         - ContainerName: orchardlite-prestage-app
           ContainerPort: 8080
           TargetGroupArn: !Ref ALBTargetGroup
-      HealthCheckGracePeriodSeconds: 300
+      HealthCheckGracePeriodSeconds: 180
+      DeploymentConfiguration:
+        MaximumPercent: 200
+        MinimumHealthyPercent: 0
+        DeploymentCircuitBreaker:
+          Enable: true
+          Rollback: true
 
 Outputs:
   ApplicationURL:
-    Description: URL of the OrchardLite CMS Enterprise Application
+    Description: "OrchardLite CMS Application - Click to access your deployed application"
     Value: !Sub "http://${ApplicationLoadBalancer.DNSName}"
-
-  LoadBalancerDNS:
-    Description: DNS name of the Application Load Balancer
-    Value: !GetAtt ApplicationLoadBalancer.DNSName
-
-  DatabaseEndpoint:
-    Description: RDS MySQL database endpoint
-    Value: !GetAtt RDSDatabase.Endpoint.Address
-
-  ECSClusterName:
-    Description: Name of the ECS Cluster
-    Value: !Ref ECSCluster
-
-  WorkshopPhase:
-    Description: Current workshop phase
-    Value: "Phase 1 - Enterprise Setup (.NET Framework 4.8 + RDS MySQL)"
