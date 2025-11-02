@@ -1,6 +1,6 @@
 # OrchardLite CMS - AWS Modernization Workshop
 
-## 🚀 Quick Deploy (5 minutes)
+## 🚀 Quick Deploy (10 minutes)
 
 ### Prerequisites
 - AWS CLI configured (`aws configure`)
@@ -57,7 +57,7 @@ aws cloudformation delete-stack --stack-name orchardlite-workshop-*
 
 ## 🆘 Troubleshooting
 - **Stack creation failed**: Check AWS CLI configuration and permissions
-- **Application not accessible**: Wait 5-8 minutes for full deployment
+- **Application not accessible**: Wait 8-10 minutes for full deployment
 - **Database connection issues**: RDS takes longest to initialize
 
 ---

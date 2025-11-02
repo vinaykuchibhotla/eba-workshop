@@ -814,10 +814,7 @@ Resources:
                       </nav>
                       
                       <div class="container mt-4">
-                        <div class="alert" style="background-color: #E8F4FD; border-color: #FF9900; color: #232F3E;">
-                          <h4><i class="fas fa-info-circle" style="color: #FF9900;"></i> Application Deployment Complete</h4>
-                          <p class="mb-0"><strong>Status:</strong> Enterprise CMS running on <span class="text-danger">.NET Framework 4.8</span> with <span class="text-danger">RDS MySQL 8.0</span> database on AWS cloud infrastructure.</p>
-                        </div>
+
                         
                         <div class="alert alert-warning">
                           <h5><i class="fas fa-exclamation-triangle text-warning"></i> License Compliance Warning</h5>
