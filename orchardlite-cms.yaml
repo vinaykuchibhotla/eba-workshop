@@ -181,7 +181,6 @@ Resources:
   # RDS MySQL Database
   RDSDatabase:
     Type: AWS::RDS::DBInstance
-    DependsOn: RDSServiceLinkedRole
     DeletionPolicy: Delete
     CreationPolicy:
       ResourceSignal:
@@ -235,7 +234,6 @@ Resources:
   # Application Load Balancer
   ApplicationLoadBalancer:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
-    DependsOn: ELBServiceLinkedRole
     Properties:
       Name: OrchardLite-Enterprise-ALB
       Scheme: internet-facing
@@ -274,29 +272,9 @@ Resources:
       Port: 80
       Protocol: HTTP
 
-  # Service Linked Roles for AWS Services
-  ECSServiceLinkedRole:
-    Type: AWS::IAM::ServiceLinkedRole
-    Properties:
-      AWSServiceName: ecs.amazonaws.com
-      Description: Service-linked role for Amazon ECS
-
-  ELBServiceLinkedRole:
-    Type: AWS::IAM::ServiceLinkedRole
-    Properties:
-      AWSServiceName: elasticloadbalancing.amazonaws.com
-      Description: Service-linked role for Elastic Load Balancing
-
-  RDSServiceLinkedRole:
-    Type: AWS::IAM::ServiceLinkedRole
-    Properties:
-      AWSServiceName: rds.amazonaws.com
-      Description: Service-linked role for Amazon RDS
-
   # ECS Cluster
   ECSCluster:
     Type: AWS::ECS::Cluster
-    DependsOn: ECSServiceLinkedRole
     Properties:
       ClusterName: OrchardLite-Enterprise-Cluster
       CapacityProviders:
