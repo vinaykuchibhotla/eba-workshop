@@ -4,7 +4,7 @@ Description: "OrchardLite .NET Core 3.1 Application - Bootstrap for AWS Moderniz
 Parameters:
   GitHubRepo:
     Type: String
-    Default: "https://github.com/vinaykuchibhotla/dotnet-migration-workshop"
+    Default: "https://github.com/vinaykuchibhotla/eba-workshop"
     Description: GitHub repository URL
 
   GitHubBranch:
