@@ -39,20 +39,19 @@ namespace OrchardLite.Web.Services
             {
                 Console.WriteLine("Initializing database...");
                 
-                // Create database if it doesn't exist
+                // First, connect without database to create it
                 using (var connection = new MySqlConnection(GetConnectionString(false)))
                 {
                     connection.Open();
                     var dbName = Environment.GetEnvironmentVariable("DB_NAME") ?? "OrchardLiteDB";
-                    
                     using (var cmd = new MySqlCommand($"CREATE DATABASE IF NOT EXISTS `{dbName}`", connection))
                     {
                         cmd.ExecuteNonQuery();
                     }
                 }
-
-                // Create table and seed data
-                using (var connection = new MySqlConnection(GetConnectionString()))
+                
+                // Then connect to the database to create tables and seed data
+                using (var connection = new MySqlConnection(GetConnectionString(true)))
                 {
                     connection.Open();
 

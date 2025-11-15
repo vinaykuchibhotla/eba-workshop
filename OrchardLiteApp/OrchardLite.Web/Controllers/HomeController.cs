@@ -74,8 +74,24 @@ namespace OrchardLite.Web.Controllers
                 ViewBag.TotalRecords = totalRecords;
                 ViewBag.DbHost = Environment.GetEnvironmentVariable("DB_HOST") ?? "localhost";
                 ViewBag.DbPort = Environment.GetEnvironmentVariable("DB_PORT") ?? "3306";
-                ViewBag.DotNetVersion = ".NET Core 3.1";
-                ViewBag.DatabaseType = "RDS MySQL 8.0";
+                
+                // Dynamically detect .NET version
+                ViewBag.DotNetVersion = System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription;
+                
+                // Dynamically detect database type from connection string
+                var dbHost = ViewBag.DbHost.ToString().ToLower();
+                if (dbHost.Contains("aurora") || dbHost.Contains("cluster"))
+                {
+                    ViewBag.DatabaseType = "Aurora Serverless v2";
+                }
+                else if (dbHost.Contains("rds"))
+                {
+                    ViewBag.DatabaseType = "RDS MySQL 8.0";
+                }
+                else
+                {
+                    ViewBag.DatabaseType = "MySQL Database";
+                }
 
                 return View(contentItems);
             }
@@ -131,14 +147,21 @@ namespace OrchardLite.Web.Controllers
 
         public IActionResult Health()
         {
+            // Dynamically detect environment
+            var dbHost = (Environment.GetEnvironmentVariable("DB_HOST") ?? "localhost").ToLower();
+            var dotnetVersion = System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription;
+            var isTransformed = dotnetVersion.Contains(".NET 8") || dotnetVersion.Contains(".NET Core 8");
+            var isAurora = dbHost.Contains("aurora") || dbHost.Contains("cluster");
+            
             var health = new
             {
                 status = "OK",
-                phase = "Phase 1 - Current State",
-                dotnetVersion = ".NET Core 3.1",
+                phase = isTransformed ? "Phase 2 - Transformed State" : "Phase 1 - Current State",
+                dotnetVersion = dotnetVersion,
                 deploymentType = "CloudFormation Automated",
-                databaseType = "RDS MySQL 8.0",
-                databaseHost = Environment.GetEnvironmentVariable("DB_HOST") ?? "localhost",
+                databaseType = isAurora ? "Aurora Serverless v2" : "RDS MySQL 8.0",
+                databaseHost = dbHost,
+                platform = "ECS Fargate",
                 timestamp = DateTime.UtcNow.ToString("o")
             };
 

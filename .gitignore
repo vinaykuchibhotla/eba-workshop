@@ -1,0 +1,52 @@
+# Kiro IDE
+.kiro/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Build outputs
+bin/
+obj/
+*.dll
+*.exe
+*.pdb
+
+# NuGet
+packages/
+*.nupkg
+
+# User-specific files
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Workshop infrastructure templates (keep local only)
+AppTransformation/
+Database/
+Platform/
+Security/
+
+# Workshop deployment files (keep local only)
+QUICKSTART.md
+orchardlite-dotnet-bootstrap.yaml
+orchardlite-cms.yaml
+orchardlite-service-roles.yaml
+orchardlite-simple.yaml
+deploy.sh
+DEPLOYMENT-PLAN.md
+TEAM-GUIDE.md
+FIXES-APPLIED.md
+
+# Workshop patches and test files
+patches/
+docker-compose.yml
+test-local.sh

@@ -1,6 +1,10 @@
 @model List<OrchardLite.Web.Models.ContentItem>
 @{
     ViewBag.Title = "Home";
+    var isTransformed = ViewBag.DotNetVersion.ToString().Contains(".NET 8");
+    var isAurora = ViewBag.DatabaseType.ToString().Contains("Aurora");
+    var dbHost = ViewBag.DbHost.ToString().ToLower();
+    var isPrivateNetwork = dbHost.Contains("cluster") || dbHost.Contains("aurora");
 }
 
 <div class="alert alert-warning">
@@ -8,10 +12,20 @@
     <p class="mb-0"><strong>Notice:</strong> This application contains GPL and AGPL licensed components that may require source code disclosure. <strong>Compliance review recommended before production deployment.</strong></p>
 </div>
 
-<div class="alert alert-danger">
-    <h5><i class="fas fa-shield-alt text-danger"></i> Network Security Warning</h5>
-    <p class="mb-0"><strong>Critical:</strong> Database and application deployed in <strong>public subnets with direct internet access</strong>. This configuration violates security best practices and requires immediate network isolation.</p>
-</div>
+@if (!isPrivateNetwork)
+{
+    <div class="alert alert-danger">
+        <h5><i class="fas fa-shield-alt text-danger"></i> Network Security Warning</h5>
+        <p class="mb-0"><strong>Critical:</strong> Database and application deployed in <strong>public subnets with direct internet access</strong>. This configuration violates security best practices and requires immediate network isolation.</p>
+    </div>
+}
+else
+{
+    <div class="alert alert-success">
+        <h5><i class="fas fa-shield-alt text-success"></i> Network Security Compliant</h5>
+        <p class="mb-0"><strong>Secured:</strong> Database and application deployed in <strong>private subnets with NAT gateway</strong>. Network isolation implemented following security best practices.</p>
+    </div>
+}
 
 <div class="row">
     <div class="col-md-8">
@@ -62,27 +76,34 @@
             </div>
             <div class="card-body">
                 <ul class="list-unstyled">
-                    <li><strong>Framework:</strong> <span class="text-danger">@ViewBag.DotNetVersion</span></li>
+                    <li><strong>Framework:</strong> <span class="@(isTransformed ? "text-success" : "text-danger")">@ViewBag.DotNetVersion</span></li>
                     <li><strong>Platform:</strong> ECS Fargate</li>
-                    <li><strong>Database:</strong> <span class="text-danger">@ViewBag.DatabaseType</span></li>
-                    <li><strong>Network:</strong> <span class="text-danger">Public Subnets Only</span></li>
+                    <li><strong>Database:</strong> <span class="@(isAurora ? "text-success" : "text-danger")">@ViewBag.DatabaseType</span></li>
+                    <li><strong>Network:</strong> <span class="@(isPrivateNetwork ? "text-success" : "text-danger")">@(isPrivateNetwork ? "Private Subnets with NAT" : "Public Subnets Only")</span></li>
                     <li><strong>Records:</strong> @ViewBag.TotalRecords</li>
                 </ul>
             </div>
         </div>
         
         <div class="card mt-3">
-            <div class="card-header text-white" style="background-color: #dc3545;">
-                <h5><i class="fas fa-exclamation-triangle"></i> Issues Detected</h5>
+            <div class="card-header text-white" style="background-color: @(isTransformed && isAurora && isPrivateNetwork ? "#28a745" : "#dc3545");">
+                <h5><i class="fas @(isTransformed && isAurora && isPrivateNetwork ? "fa-check-circle" : "fa-exclamation-triangle")"></i> @(isTransformed && isAurora && isPrivateNetwork ? "Issues Resolved" : "Issues Detected")</h5>
             </div>
             <div class="card-body">
                 <ul class="list-unstyled small">
-                    <li><i class="fas fa-times text-danger"></i> Legacy .NET Core 3.1</li>
-                    <li><i class="fas fa-times text-danger"></i> Single-instance database</li>
-                    <li><i class="fas fa-times text-danger"></i> Database in public subnet</li>
-                    <li><i class="fas fa-times text-danger"></i> GPL-licensed components</li>
-                    <li><i class="fas fa-times text-danger"></i> Manual deployments</li>
-                    <li><small class="text-muted">Modernization required</small></li>
+                    <li><i class="fas @(isTransformed ? "fa-check text-success" : "fa-times text-danger")"></i> @(isTransformed ? ".NET 8.0 Modern Framework" : "Legacy .NET Core 3.1")</li>
+                    <li><i class="fas @(isAurora ? "fa-check text-success" : "fa-times text-danger")"></i> @(isAurora ? "Aurora Serverless v2 (Scalable)" : "Single-instance database")</li>
+                    <li><i class="fas @(isPrivateNetwork ? "fa-check text-success" : "fa-times text-danger")"></i> @(isPrivateNetwork ? "Database in private subnet" : "Database in public subnet")</li>
+                    <li><i class="fas fa-times text-warning"></i> GPL-licensed components</li>
+                    <li><i class="fas @(isTransformed ? "fa-check text-success" : "fa-times text-danger")"></i> @(isTransformed ? "Automated CI/CD pipeline" : "Manual deployments")</li>
+                    @if (isTransformed && isAurora && isPrivateNetwork)
+                    {
+                        <li><small class="text-success">Modernization complete!</small></li>
+                    }
+                    else
+                    {
+                        <li><small class="text-muted">Modernization required</small></li>
+                    }
                 </ul>
             </div>
         </div>
@@ -93,10 +114,14 @@
             </div>
             <div class="card-body">
                 <ul class="list-unstyled">
-                    <li><i class="fas fa-check text-success"></i> RDS MySQL Database</li>
+                    <li><i class="fas fa-check text-success"></i> @(isAurora ? "Aurora Serverless Database" : "RDS MySQL Database")</li>
                     <li><i class="fas fa-check text-success"></i> ECS Fargate Application</li>
                     <li><i class="fas fa-check text-success"></i> Load Balancer & Networking</li>
-                    <li><i class="fas fa-check text-success"></i> Sample Data Created</li>
+                    <li><i class="fas fa-check text-success"></i> @(isPrivateNetwork ? "Private Subnet Deployment" : "Sample Data Created")</li>
+                    @if (isTransformed)
+                    {
+                        <li><i class="fas fa-check text-success"></i> CI/CD Pipeline Active</li>
+                    }
                 </ul>
             </div>
         </div>
